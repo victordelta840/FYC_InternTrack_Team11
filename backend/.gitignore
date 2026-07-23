@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.env
+keys/*.pem
+storage/templates/*
+storage/certificates/*
+storage/uploads/*
+!storage/templates/.gitkeep
+!storage/certificates/.gitkeep
+!storage/uploads/.gitkeep
+*.log
+.DS_Store

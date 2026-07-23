@@ -1,0 +1,6 @@
+email,date,status,notes
+student1@interntrack.local,2026-01-15,PRESENT,
+student1@interntrack.local,2026-01-16,PRESENT,
+student1@interntrack.local,2026-01-17,HALF_DAY,Left early for exam
+student2@interntrack.local,2026-01-15,PRESENT,
+student2@interntrack.local,2026-01-16,ABSENT,Medical leave
