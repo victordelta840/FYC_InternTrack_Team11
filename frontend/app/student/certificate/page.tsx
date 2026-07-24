@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { AppShell } from '@/components/AppShell';
@@ -10,7 +10,7 @@ import { ProgressRing } from '@/components/ProgressRing';
 import { toast } from 'sonner';
 import { Download, Loader2, ScrollText } from 'lucide-react';
 
-export default function StudentCertificate() {
+function StudentCertificateContent() {
   const user = useRequireRole('STUDENT');
   const qc = useQueryClient();
   const search = useSearchParams();
@@ -152,5 +152,13 @@ export default function StudentCertificate() {
         </table>
       </div>
     </AppShell>
+  );
+}
+
+export default function StudentCertificate() {
+  return (
+    <Suspense fallback={null}>
+      <StudentCertificateContent />
+    </Suspense>
   );
 }
