@@ -70,6 +70,12 @@ export default function StudentMentorLogin() {
             </button>
           </form>
 
+          <p className="mt-3 text-center text-xs">
+            <Link className="text-neon-400 hover:underline" href="/auth/forgot-password">
+              Forgot Password?
+            </Link>
+          </p>
+
           <div className="mt-6 flex items-center justify-between text-xs text-slate-500">
             <Link href="/auth/register" className="hover:text-neon-400">Create student account</Link>
             <Link href="/admin/login" className="hover:text-neon-400">Admin gateway →</Link>

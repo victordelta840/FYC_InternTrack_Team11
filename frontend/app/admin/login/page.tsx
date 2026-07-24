@@ -71,6 +71,11 @@ export default function AdminLogin() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enter Admin Console'}
             </button>
           </form>
+          <p className="mt-3 text-center text-xs">
+            <Link className="text-neon-400 hover:underline" href="/auth/forgot-password">
+              Forgot Password?
+            </Link>
+          </p>
           <p className="mt-4 text-xs text-slate-500">
             Not an admin? <Link className="text-neon-400 hover:underline" href="/auth/login">Use the portal login</Link>.
           </p>

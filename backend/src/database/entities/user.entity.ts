@@ -8,6 +8,7 @@ import { InternshipStudent } from './internship-student.entity';
 @Entity({ name: 'users' })
 @Index('idx_users_email', ['email'], { unique: true })
 @Index('idx_users_role', ['role'])
+@Index('idx_users_reset_password_token_hash', ['resetPasswordTokenHash'])
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 191, unique: true })
   email: string;
@@ -32,6 +33,12 @@ export class User extends BaseEntity {
 
   @Column({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true })
   refreshTokenHash: string | null;
+
+  @Column({ name: 'reset_password_token_hash', type: 'varchar', length: 255, nullable: true })
+  resetPasswordTokenHash: string | null;
+
+  @Column({ name: 'reset_password_expires_at', type: 'datetime', precision: 6, nullable: true })
+  resetPasswordExpiresAt: Date | null;
 
   @OneToOne(() => Profile, (profile) => profile.user)
   profile: Profile;
