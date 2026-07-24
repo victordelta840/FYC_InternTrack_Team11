@@ -178,7 +178,7 @@ export default function AdminOverview() {
         <div className="card">
           <h2 className="font-display text-lg mb-3">System</h2>
           <p className="text-slate-500 text-sm">
-            Signed in as <span className="font-mono text-neon-400">{user.email ?? user.name ?? 'admin'}</span>.
+            Signed in as <span className="font-mono text-neon-400">{user.email ?? 'admin'}</span>.
           </p>
         </div>
       </div>
