@@ -55,7 +55,12 @@ export default function StudentMentorLogin() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="password">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="label" htmlFor="password">Password</label>
+                <Link href="/auth/forgot-password" className="text-xs text-slate-400 hover:text-neon-400">
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 id="password"
                 type="password"
@@ -69,12 +74,6 @@ export default function StudentMentorLogin() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign In'}
             </button>
           </form>
-
-          <p className="mt-3 text-center text-xs">
-            <Link className="text-neon-400 hover:underline" href="/auth/forgot-password">
-              Forgot Password?
-            </Link>
-          </p>
 
           <div className="mt-6 flex items-center justify-between text-xs text-slate-500">
             <Link href="/auth/register" className="hover:text-neon-400">Create student account</Link>

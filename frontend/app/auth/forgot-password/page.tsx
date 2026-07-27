@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Loader2, Mail, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Loader2, MailCheck } from 'lucide-react';
 import { api } from '@/lib/api-client';
 
-export default function ForgotPassword() {
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -14,68 +15,77 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     try {
+      // The backend always returns the same generic response whether
+      // or not the email exists (prevents account enumeration), so we
+      // always show the same confirmation panel on success.
       await api.post('/auth/forgot-password', { email });
-    } catch {
-      // The API always returns a generic response either way (it never
-      // reveals whether the email exists), so there's nothing to branch on
-      // here — fall through to the same success state regardless.
+      setSent(true);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
-      setSent(true);
     }
   }
 
   return (
     <main className="min-h-screen grid place-items-center bg-bg-950 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(56,189,248,0.10),transparent_60%)]" />
+      <div className="absolute top-10 left-10 w-[350px] h-[350px] rounded-full bg-neon-500/10 blur-3xl" />
       <div className="w-full max-w-md relative z-10">
-        <div className="card border-neon-500/30 shadow-neon">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-neon-500/20 text-neon-400 flex items-center justify-center">
-              <Mail className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="font-display text-xl">Forgot Password</h1>
-              <p className="text-xs text-slate-400">We'll email you a reset link</p>
-            </div>
-          </div>
+        <Link href="/auth/login" className="text-slate-400 text-xs uppercase tracking-widest">
+          ← back to sign in
+        </Link>
 
+        <div className="card mt-4">
           {sent ? (
-            <div className="mt-4 space-y-4">
-              <div className="flex items-start gap-2 rounded-lg border border-neon-500/30 bg-neon-500/10 p-3 text-sm text-slate-300">
-                <CheckCircle2 className="w-4 h-4 mt-0.5 text-neon-400 shrink-0" />
-                <span>
-                  If an account exists for that email, a password reset link has been sent.
-                  Check your inbox.
-                </span>
+            <div className="text-center py-2">
+              <div className="mx-auto w-12 h-12 rounded-full bg-neon-500/15 border border-neon-500/40 grid place-items-center">
+                <MailCheck className="w-6 h-6 text-neon-400" />
               </div>
-              <Link href="/auth/login" className="btn-primary w-full inline-flex items-center justify-center">
-                Back to login
-              </Link>
+              <h1 className="font-display text-2xl font-semibold mt-4">Check your email</h1>
+              <p className="text-slate-400 text-sm mt-2">
+                If an account exists for <span className="text-slate-200">{email}</span>, we&apos;ve sent a
+                link to reset your password. The link expires in 30 minutes.
+              </p>
+              <button
+                type="button"
+                className="btn-ghost w-full mt-6"
+                onClick={() => setSent(false)}
+              >
+                Use a different email
+              </button>
             </div>
           ) : (
-            <form onSubmit={submit} className="mt-4 space-y-4">
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  required
-                  className="input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                />
-              </div>
-              <button className="btn-primary w-full" disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Reset Link'}
-              </button>
-            </form>
+            <>
+              <h1 className="font-display text-2xl font-semibold">Reset your password</h1>
+              <p className="text-slate-400 text-sm mt-1">
+                Enter the email associated with your account and we&apos;ll send you a reset link.
+              </p>
+
+              <form onSubmit={submit} className="mt-6 space-y-4">
+                <div>
+                  <label className="label" htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    required
+                    autoFocus
+                    className="input"
+                    placeholder="you@interntrack.local"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </div>
+                <button type="submit" className="btn-primary w-full" disabled={loading}>
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Reset Link'}
+                </button>
+              </form>
+            </>
           )}
 
-          <p className="mt-4 text-xs text-slate-500">
+          <div className="mt-6 text-center text-xs text-slate-500">
             Remembered your password?{' '}
-            <Link className="text-neon-400 hover:underline" href="/auth/login">Back to login</Link>.
-          </p>
+            <Link href="/auth/login" className="hover:text-neon-400">Sign in</Link>
+          </div>
         </div>
       </div>
     </main>

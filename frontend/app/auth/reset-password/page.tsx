@@ -4,102 +4,140 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, KeyRound } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { api } from '@/lib/api-client';
+
+const PASSWORD_RULES = [
+  { test: (v: string) => v.length >= 8, label: 'At least 8 characters' },
+  { test: (v: string) => /[A-Z]/.test(v), label: 'One uppercase letter' },
+  { test: (v: string) => /[a-z]/.test(v), label: 'One lowercase letter' },
+  { test: (v: string) => /[0-9]/.test(v), label: 'One number' },
+];
 
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get('token') || '';
 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const rulesPassed = PASSWORD_RULES.every((r) => r.test(newPassword));
+  const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmit = token && rulesPassed && passwordsMatch && !loading;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) {
-      toast.error('Reset link is missing or invalid. Please request a new one.');
+    if (!rulesPassed) {
+      toast.error('Password does not meet the requirements below.');
       return;
     }
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match');
+    if (!passwordsMatch) {
+      toast.error('Passwords do not match.');
       return;
     }
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, newPassword, confirmPassword });
-      toast.success('Password reset. You can now log in.');
-      router.replace('/auth/login');
+      const res = await api.post('/auth/reset-password', { token, newPassword });
+      toast.success(res.data?.message || 'Password reset successfully.');
+      router.push('/auth/login');
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Reset link is invalid or expired');
+      toast.error(err.response?.data?.message || 'Invalid or expired reset link.');
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div className="card border-neon-500/30 shadow-neon">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-lg bg-neon-500/20 text-neon-400 flex items-center justify-center">
-          <KeyRound className="w-5 h-5" />
+  if (!token) {
+    return (
+      <div className="text-center py-2">
+        <div className="mx-auto w-12 h-12 rounded-full bg-red-500/15 border border-red-500/40 grid place-items-center">
+          <ShieldAlert className="w-6 h-6 text-red-400" />
         </div>
-        <div>
-          <h1 className="font-display text-xl">Reset Password</h1>
-          <p className="text-xs text-slate-400">Choose a new password for your account</p>
-        </div>
+        <h1 className="font-display text-2xl font-semibold mt-4">Invalid reset link</h1>
+        <p className="text-slate-400 text-sm mt-2">
+          This password reset link is missing or malformed. Please request a new one.
+        </p>
+        <Link href="/auth/forgot-password" className="btn-primary w-full mt-6 inline-flex">
+          Request a new link
+        </Link>
       </div>
+    );
+  }
 
-      {!token && (
-        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-          This reset link is missing its token. Please request a new one from the{' '}
-          <Link className="underline" href="/auth/forgot-password">forgot password</Link> page.
-        </div>
-      )}
+  return (
+    <>
+      <h1 className="font-display text-2xl font-semibold">Set a new password</h1>
+      <p className="text-slate-400 text-sm mt-1">Choose a strong password for your account.</p>
 
-      <form onSubmit={submit} className="mt-4 space-y-4">
+      <form onSubmit={submit} className="mt-6 space-y-4">
         <div>
-          <label className="label">New Password</label>
+          <label className="label" htmlFor="newPassword">New password</label>
           <input
+            id="newPassword"
             type="password"
             required
-            minLength={8}
+            autoFocus
             className="input"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
         </div>
         <div>
-          <label className="label">Confirm Password</label>
+          <label className="label" htmlFor="confirmPassword">Confirm new password</label>
           <input
+            id="confirmPassword"
             type="password"
             required
-            minLength={8}
             className="input"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
           />
+          {confirmPassword.length > 0 && !passwordsMatch && (
+            <p className="text-[11px] text-red-400 mt-1">Passwords do not match.</p>
+          )}
         </div>
-        <button className="btn-primary w-full" disabled={loading || !token}>
+
+        <ul className="space-y-1">
+          {PASSWORD_RULES.map((rule) => {
+            const passed = rule.test(newPassword);
+            return (
+              <li
+                key={rule.label}
+                className={`text-[11px] flex items-center gap-1.5 ${
+                  passed ? 'text-neon-400' : 'text-slate-500'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${passed ? 'bg-neon-400' : 'bg-slate-600'}`} />
+                {rule.label}
+              </li>
+            );
+          })}
+        </ul>
+
+        <button type="submit" className="btn-primary w-full" disabled={!canSubmit}>
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Reset Password'}
         </button>
       </form>
-
-      <p className="mt-4 text-xs text-slate-500">
-        <Link className="text-neon-400 hover:underline" href="/auth/login">Back to login</Link>.
-      </p>
-    </div>
+    </>
   );
 }
 
-export default function ResetPassword() {
+export default function ResetPasswordPage() {
   return (
     <main className="min-h-screen grid place-items-center bg-bg-950 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_10%,rgba(56,189,248,0.10),transparent_60%)]" />
+      <div className="absolute top-10 left-10 w-[350px] h-[350px] rounded-full bg-neon-500/10 blur-3xl" />
       <div className="w-full max-w-md relative z-10">
-        <Suspense fallback={null}>
-          <ResetPasswordForm />
-        </Suspense>
+        <Link href="/auth/login" className="text-slate-400 text-xs uppercase tracking-widest">
+          ← back to sign in
+        </Link>
+
+        <div className="card mt-4">
+          <Suspense fallback={<Loader2 className="w-5 h-5 animate-spin text-slate-400 mx-auto" />}>
+            <ResetPasswordForm />
+          </Suspense>
+        </div>
       </div>
     </main>
   );

@@ -58,6 +58,18 @@ export default registerAs('app', () => ({
   },
 
   mail: {
+    // Which provider to try first: 'resend' (default) or 'smtp'.
+    // The other one is always used as an automatic fallback if the
+    // primary provider's send() call throws — this is what satisfies
+    // "Resend primary, Gmail SMTP fallback" without hardcoding either
+    // choice into code; ops can flip MAIL_PRIMARY_PROVIDER at any time.
+    primaryProvider: (process.env.MAIL_PRIMARY_PROVIDER || 'resend').toLowerCase(),
+
+    // Resend (HTTPS API — not subject to the SMTP-port-blocking issues
+    // that raw SMTP can hit on platforms like Render).
+    resendApiKey: process.env.RESEND_API_KEY || '',
+
+    // Gmail / generic SMTP (nodemailer).
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: (process.env.SMTP_SECURE || 'false') === 'true',
