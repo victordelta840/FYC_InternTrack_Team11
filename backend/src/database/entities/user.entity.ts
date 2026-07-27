@@ -8,7 +8,7 @@ import { InternshipStudent } from './internship-student.entity';
 @Entity({ name: 'users' })
 @Index('idx_users_email', ['email'], { unique: true })
 @Index('idx_users_role', ['role'])
-@Index('idx_users_reset_password_token_hash', ['resetPasswordTokenHash'])
+@Index('idx_users_reset_token', ['resetPasswordTokenHash'])
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 191, unique: true })
   email: string;

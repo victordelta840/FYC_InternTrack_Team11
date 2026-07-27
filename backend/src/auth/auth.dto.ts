@@ -59,8 +59,4 @@ export class ResetPasswordDto {
   @Matches(/[a-z]/, { message: 'Password must contain a lowercase letter' })
   @Matches(/[0-9]/, { message: 'Password must contain a number' })
   newPassword: string;
-
-  @IsString()
-  @MinLength(8)
-  confirmPassword: string;
 }

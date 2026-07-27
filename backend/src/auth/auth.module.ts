@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { User } from '../database/entities/user.entity';
 import { Profile } from '../database/entities/profile.entity';
 import { WebhooksModule } from '../webhooks/webhooks.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { WebhooksModule } from '../webhooks/webhooks.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({}),
     WebhooksModule,
+    MailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PasswordService, JwtStrategy],

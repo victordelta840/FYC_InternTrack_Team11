@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -11,17 +10,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { readFileSync } from 'fs';
 import * as crypto from 'crypto';
-import * as nodemailer from 'nodemailer';
 import { User } from '../database/entities/user.entity';
 import { Profile } from '../database/entities/profile.entity';
 import { UserRole } from '../database/entities/enums';
 import { PasswordService } from './password.service';
 import { WebhookEmitterService } from '../webhooks/webhook-emitter.service';
+import { MailService } from '../mail/mail.service';
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
-const RESET_TOKEN_BYTES = 32;
-const RESET_TOKEN_TTL_MINUTES = 15;
 
 interface TokenBundle {
   accessToken: string;
@@ -32,29 +29,20 @@ interface TokenBundle {
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
   private readonly privateKey: string;
   private readonly publicKey: string;
-  private readonly mailer: nodemailer.Transporter;
 
   constructor(
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly password: PasswordService,
     private readonly emitter: WebhookEmitterService,
+    private readonly mail: MailService,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Profile) private readonly profileRepo: Repository<Profile>,
   ) {
     this.privateKey = readFileSync(this.config.get<string>('app.jwt.privateKeyPath')!, 'utf8');
     this.publicKey = readFileSync(this.config.get<string>('app.jwt.publicKeyPath')!, 'utf8');
-    this.mailer = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: process.env.SMTP_USER
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        : undefined,
-    });
   }
 
   /**
@@ -198,90 +186,77 @@ export class AuthService {
   }
 
   /**
-   * Always resolves with the same generic message, regardless of whether the
-   * email belongs to an account, so the endpoint can't be used to enumerate
-   * registered users. If a matching, active account exists, a single-use
-   * reset token (hashed at rest, 15-minute TTL) is issued and broadcast for
-   * delivery — mirroring how `student.registered` is broadcast elsewhere.
+   * Always resolves with the same generic outcome regardless of
+   * whether the email exists — this prevents user enumeration via the
+   * forgot-password endpoint. If the account exists, a single-use
+   * reset token is generated (hashed at rest, same pattern as refresh
+   * tokens) and emailed to the user. Mail delivery failures are logged
+   * but never bubble up to the caller, so an SMTP outage never turns
+   * into a broken-looking response for the end user.
    */
   async forgotPassword(email: string): Promise<{ message: string }> {
-    const normalized = email.toLowerCase().trim();
-    const user = await this.userRepo.findOne({ where: { email: normalized } });
-
-    if (user && user.isActive) {
-      const rawToken = crypto.randomBytes(RESET_TOKEN_BYTES).toString('hex');
-      user.resetPasswordTokenHash = this.hashToken(rawToken);
-      user.resetPasswordExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60 * 1000);
-      await this.userRepo.save(user);
-
-      void this.emitter.broadcast('user.password_reset_requested', {
-        id: user.id,
-        email: user.email,
-        resetToken: rawToken,
-        expiresAt: user.resetPasswordExpiresAt.toISOString(),
-      });
-
-      void this.sendPasswordResetEmail(user.email, rawToken);
-    }
-
-    return {
-      message: 'If an account exists for that email, a password reset link has been sent.',
+    const generic = {
+      message: 'If an account exists for this email, a password reset link has been sent.',
     };
-  }
 
-  /**
-   * Best-effort HTML reset email. Failures are logged, not thrown — a broken
-   * SMTP connection must never surface through the generic forgot-password
-   * response, since that would leak whether the account exists.
-   */
-  private async sendPasswordResetEmail(email: string, rawToken: string): Promise<void> {
-    const resetLink = `${process.env.FRONTEND_URL}/auth/reset-password?token=${rawToken}`;
-    try {
-      await this.mailer.sendMail({
-        from: process.env.MAIL_FROM,
-        to: email,
-        subject: 'Reset your password',
-        html: `
-          <p>We received a request to reset your password.</p>
-          <p><a href="${resetLink}">Click here to reset your password</a></p>
-          <p>This link expires in ${RESET_TOKEN_TTL_MINUTES} minutes. If you didn't request this, you can safely ignore this email.</p>
-        `,
-      });
-    } catch (err) {
-      this.logger.error(`Failed to send password reset email to ${email}`, err as Error);
+    const user = await this.userRepo.findOne({
+      where: { email: email.toLowerCase().trim() },
+      relations: { profile: true },
+    });
+
+    if (!user || !user.isActive) {
+      return generic;
     }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const ttlMinutes = this.config.get<number>('app.passwordReset.ttlMinutes')!;
+
+    user.resetPasswordTokenHash = this.hashToken(rawToken);
+    user.resetPasswordExpiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+    await this.userRepo.save(user);
+
+    const frontendUrl = this.config.get<string>('app.frontendUrl')!;
+    const resetLink = `${frontendUrl.replace(/\/$/, '')}/reset-password?token=${rawToken}`;
+
+    try {
+      await this.mail.sendPasswordResetEmail(
+        user.email,
+        user.profile?.firstName ?? '',
+        resetLink,
+        ttlMinutes,
+      );
+    } catch {
+      // Intentionally swallowed: the client always gets the generic
+      // response above. MailService already logs the full failure
+      // detail for operators to see in Render logs.
+    }
+
+    return generic;
   }
 
   /**
-   * Validates the reset token against its stored hash and expiry, then
-   * updates the password using the existing PasswordService. The token is
-   * cleared immediately so it can't be replayed, and any existing refresh
-   * session is invalidated so a stolen access session doesn't survive a
-   * password reset.
+   * Consumes a password reset token issued by forgotPassword(). On
+   * success the token is invalidated (one-time use), all active
+   * refresh tokens are revoked (forcing re-login everywhere), and any
+   * account lockout counters are cleared.
    */
   async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
-    if (!token) throw new BadRequestException('Invalid or expired reset token');
-
     const tokenHash = this.hashToken(token);
     const user = await this.userRepo.findOne({ where: { resetPasswordTokenHash: tokenHash } });
 
-    if (
-      !user ||
-      !user.resetPasswordExpiresAt ||
-      user.resetPasswordExpiresAt.getTime() < Date.now()
-    ) {
+    if (!user || !user.resetPasswordExpiresAt || user.resetPasswordExpiresAt.getTime() < Date.now()) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
     user.passwordHash = await this.password.hash(newPassword);
-    user.resetPasswordTokenHash = null;
+    user.resetPasswordTokenHash = null; // one-time use
     user.resetPasswordExpiresAt = null;
-    user.refreshTokenHash = null;
+    user.refreshTokenHash = null; // revoke all existing sessions
     user.failedLoginAttempts = 0;
     user.lockedUntil = null;
     await this.userRepo.save(user);
 
-    return { message: 'Password has been reset successfully.' };
+    return { message: 'Password has been reset successfully. Please log in with your new password.' };
   }
 
   private async issueTokens(user: User): Promise<TokenBundle> {

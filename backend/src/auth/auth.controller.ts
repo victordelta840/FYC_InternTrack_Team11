@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -14,7 +13,13 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
-import { ForgotPasswordDto, LoginDto, RefreshDto, RegisterStudentDto, ResetPasswordDto } from './auth.dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RefreshDto,
+  RegisterStudentDto,
+  ResetPasswordDto,
+} from './auth.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser, JwtUserPayload } from '../common/decorators/current-user.decorator';
@@ -62,6 +67,24 @@ export class AuthController {
     return this.auth.registerStudent(dto);
   }
 
+  /** Step 1 of password recovery: request a reset link by email. */
+  @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  /** Step 2 of password recovery: consume the token and set a new password. */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.newPassword);
+  }
+
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -77,29 +100,6 @@ export class AuthController {
     const tokens = await this.auth.refresh(payload.sub, token);
     this.setRefreshCookie(res, tokens.refreshToken, tokens.refreshExpiresIn);
     return { accessToken: tokens.accessToken, accessExpiresIn: tokens.accessExpiresIn };
-  }
-
-  /**
-   * Always returns a generic response — never reveals whether the email
-   * belongs to an account. Rate-limited like the other public auth routes.
-   */
-  @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @Post('forgot-password')
-  @HttpCode(HttpStatus.OK)
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.auth.forgotPassword(dto.email);
-  }
-
-  @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
-  @Post('reset-password')
-  @HttpCode(HttpStatus.OK)
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    if (dto.newPassword !== dto.confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
-    }
-    return this.auth.resetPassword(dto.token, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)

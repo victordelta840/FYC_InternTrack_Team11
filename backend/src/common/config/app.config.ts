@@ -9,6 +9,12 @@ export default registerAs('app', () => ({
   cookieSecret: process.env.COOKIE_SECRET || 'insecure-cookie-secret-change-me-please',
   csrfEnabled: (process.env.CSRF_ENABLED || 'true') === 'true',
 
+  // Public URL of the frontend, used to build links inside transactional
+  // emails (e.g. the password reset link). Falls back to the first
+  // configured CORS origin if not explicitly set.
+  frontendUrl:
+    process.env.FRONTEND_URL || (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',')[0],
+
   jwt: {
     issuer: process.env.JWT_ISSUER || 'interntrack',
     audience: process.env.JWT_AUDIENCE || 'interntrack-client',
@@ -49,5 +55,26 @@ export default registerAs('app', () => ({
   tesseract: {
     enabled: (process.env.TESSERACT_ENABLED || 'true') === 'true',
     lang: process.env.TESSERACT_LANG || 'eng',
+  },
+
+  mail: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: (process.env.SMTP_SECURE || 'false') === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || 'InternTrack <no-reply@interntrack.local>',
+    // Explicit timeouts so a blocked/unreachable SMTP host fails fast
+    // (a few seconds) instead of hanging until Node's default ~2 minute
+    // socket timeout — this is what previously surfaced as
+    // "Connection timeout" on Render, whose outbound network can be
+    // restrictive for raw SMTP ports like 587/465.
+    connectionTimeoutMs: parseInt(process.env.SMTP_CONNECTION_TIMEOUT_MS || '10000', 10),
+    greetingTimeoutMs: parseInt(process.env.SMTP_GREETING_TIMEOUT_MS || '10000', 10),
+    socketTimeoutMs: parseInt(process.env.SMTP_SOCKET_TIMEOUT_MS || '10000', 10),
+  },
+
+  passwordReset: {
+    ttlMinutes: parseInt(process.env.PASSWORD_RESET_TTL_MINUTES || '30', 10),
   },
 }));
