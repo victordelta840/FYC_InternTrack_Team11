@@ -37,6 +37,10 @@ export class NodemailerMailProvider implements MailProvider {
     const secure = this.config.get<boolean>('app.mail.secure')!;
     const user = this.config.get<string>('app.mail.user')!;
     const pass = this.config.get<string>('app.mail.pass')!;
+    this.logger.log(`SMTP Host: ${host}`);
+this.logger.log(`SMTP Port: ${port}`);
+this.logger.log(`SMTP Secure: ${secure}`);
+this.logger.log(`SMTP User: ${user}`);
 
     this.transporter = nodemailer.createTransport({
       host,
