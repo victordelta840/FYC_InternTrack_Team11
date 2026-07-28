@@ -20,6 +20,7 @@ import { TemplatesModule } from './templates/templates.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -55,6 +56,7 @@ import { HealthController } from './health.controller';
     CertificatesModule,
     ComplaintsModule,
     WebhooksModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [
