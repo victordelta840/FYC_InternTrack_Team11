@@ -59,10 +59,9 @@ import { HealthController } from './health.controller';
     CertificatesModule,
     ComplaintsModule,
     WebhooksModule,
-<<<<<<< HEAD
-=======
+
     DashboardModule,
->>>>>>> ef70be6 (Complete internship management updates)
+
     AdminModule,
   ],
   controllers: [HealthController],
