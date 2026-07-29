@@ -88,9 +88,8 @@ export class AttendanceController {
     @UploadedFile() file: Express.Multer.File,
     @Body() dto: ImportPreviewDto,
   ): Promise<StagingResult> {
-    if (!file) throw new BadRequestException('CSV/XLSX file is required (field name: file)');
-    const rows = await this.importer.parseFile(file.buffer, file.originalname);
-    return this.importer.buildStaging(rows, dto.internshipId);
+    if (!file) throw new BadRequestException('CSV/XLS/XLSX file is required (field name: file)');
+    return this.importer.preview(file.buffer, file.originalname, dto.internshipId);
   }
 
   @Roles(UserRole.MENTOR, UserRole.ADMIN)

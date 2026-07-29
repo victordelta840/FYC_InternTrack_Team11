@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -15,7 +18,13 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole, InternshipStatus } from '../database/entities/enums';
 import { CurrentUser, JwtUserPayload } from '../common/decorators/current-user.decorator';
 import { InternshipsService } from './internships.service';
-import { CreateInternshipDto, UpdateStatusDto } from './internships.dto';
+import {
+  AssignMentorDto,
+  AssignStudentDto,
+  CreateInternshipDto,
+  UpdateInternshipDto,
+  UpdateStatusDto,
+} from './internships.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('internships')
@@ -49,5 +58,57 @@ export class InternshipsController {
     @Body() dto: UpdateStatusDto,
   ) {
     return this.svc.updateStatus(id, dto.status);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateInternshipDto,
+  ) {
+    return this.svc.update(id, dto);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
+    await this.svc.remove(id);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post(':id/mentors')
+  assignMentor(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AssignMentorDto,
+  ) {
+    return this.svc.assignMentor(id, dto.mentorId);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/mentors/:mentorId')
+  removeMentor(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('mentorId', new ParseUUIDPipe()) mentorId: string,
+  ) {
+    return this.svc.removeMentor(id, mentorId);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Post(':id/students')
+  assignStudent(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: AssignStudentDto,
+  ) {
+    return this.svc.assignStudent(id, dto.studentId);
+  }
+
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/students/:studentId')
+  removeStudent(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Param('studentId', new ParseUUIDPipe()) studentId: string,
+  ) {
+    return this.svc.removeStudent(id, studentId);
   }
 }

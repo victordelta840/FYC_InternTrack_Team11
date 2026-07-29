@@ -20,8 +20,11 @@ import { TemplatesModule } from './templates/templates.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { ComplaintsModule } from './complaints/complaints.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+
 import { AdminModule } from './admin/admin.module';
 import { HealthController } from './health.controller';
+
 
 @Module({
   imports: [
@@ -56,6 +59,10 @@ import { HealthController } from './health.controller';
     CertificatesModule,
     ComplaintsModule,
     WebhooksModule,
+<<<<<<< HEAD
+=======
+    DashboardModule,
+>>>>>>> ef70be6 (Complete internship management updates)
     AdminModule,
   ],
   controllers: [HealthController],

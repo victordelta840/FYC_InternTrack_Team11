@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { AppShell } from '@/components/AppShell';
 import { useRequireRole } from '@/hooks/use-require-role';
@@ -75,7 +76,9 @@ export default function AdminComplaintsBoard() {
                 return (
                   <div key={c.id} className={`rounded-lg bg-bg-800/60 border ${overdue ? 'border-red-500/40' : 'border-line'} p-3 text-sm`}>
                     <div className="text-[10px] uppercase tracking-widest text-slate-500">{c.category}</div>
-                    <div className="font-semibold mt-1 text-slate-100 line-clamp-2">{c.subject}</div>
+                    <Link href={`/admin/complaints/${c.id}`} className="font-semibold mt-1 text-slate-100 line-clamp-2 block hover:text-neon-400 transition-colors">
+                      {c.subject}
+                    </Link>
                     <div className="text-xs text-slate-500 mt-1">
                       {c.student?.profile?.firstName} {c.student?.profile?.lastName}
                     </div>

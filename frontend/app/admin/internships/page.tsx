@@ -3,11 +3,14 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { AppShell } from '@/components/AppShell';
 import { useRequireRole } from '@/hooks/use-require-role';
 import { toast } from 'sonner';
-import { Loader2, Plus, X, ScrollText } from 'lucide-react';
+import { Loader2, Plus, X, ScrollText, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+
+type ModalState = { mode: 'create' } | { mode: 'edit'; id: string } | null;
 
 function studentDisplayName(student: any): string {
   const firstName = student?.profile?.firstName ?? student?.firstName ?? '';
@@ -20,20 +23,23 @@ function studentDisplayId(student: any): string {
   return student?.profile?.rollNumber ?? student?.rollNumber ?? student?.email ?? '';
 }
 
+const EMPTY_FORM = {
+  title: '',
+  organization: '',
+  description: '',
+  startDate: '',
+  endDate: '',
+  totalDays: 40,
+  mentorIds: [] as string[],
+  studentIds: [] as string[],
+};
+
 export default function AdminInternships() {
   const user = useRequireRole('ADMIN');
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    organization: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    totalDays: 40,
-    mentorIds: [] as string[],
-    studentIds: [] as string[],
-  });
+  const [modal, setModal] = useState<ModalState>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
 
   const list = useQuery({
     queryKey: ['internships'],
@@ -51,9 +57,47 @@ export default function AdminInternships() {
     onSuccess: () => {
       toast.success('Internship created');
       qc.invalidateQueries({ queryKey: ['internships'] });
-      setOpen(false);
+      setModal(null);
     },
     onError: (e: any) => toast.error(e.response?.data?.message || 'Failed'),
+  });
+
+  const update = useMutation({
+    mutationFn: async () => {
+      if (!modal || modal.mode !== 'edit') throw new Error('No internship selected');
+      const { title, organization, description, startDate, endDate, totalDays } = form;
+      return (
+        await api.patch(`/internships/${modal.id}`, {
+          title,
+          organization,
+          description,
+          startDate,
+          endDate,
+          totalDays,
+        })
+      ).data;
+    },
+    onSuccess: () => {
+      toast.success('Internship updated');
+      qc.invalidateQueries({ queryKey: ['internships'] });
+      setModal(null);
+    },
+    onError: (e: any) => toast.error(e.response?.data?.message || 'Failed to update internship'),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/internships/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Internship deleted');
+      qc.invalidateQueries({ queryKey: ['internships'] });
+      setDeleteTarget(null);
+    },
+    onError: (e: any) => {
+      toast.error(e.response?.data?.message || 'Failed to delete internship');
+      setDeleteTarget(null);
+    },
   });
 
   const issueCert = useMutation({
@@ -90,6 +134,27 @@ export default function AdminInternships() {
   const mentors = (users.data ?? []).filter((u: any) => u.role === 'MENTOR');
   const students = (users.data ?? []).filter((u: any) => u.role === 'STUDENT');
 
+  function openCreate() {
+    setForm(EMPTY_FORM);
+    setModal({ mode: 'create' });
+  }
+
+  function openEdit(i: any) {
+    setForm({
+      title: i.title ?? '',
+      organization: i.organization ?? '',
+      description: i.description ?? '',
+      startDate: i.startDate ?? '',
+      endDate: i.endDate ?? '',
+      totalDays: i.totalDays ?? 1,
+      mentorIds: [],
+      studentIds: [],
+    });
+    setModal({ mode: 'edit', id: i.id });
+  }
+
+  const saving = create.isPending || update.isPending;
+
   return (
     <AppShell role="ADMIN">
       <div className="flex items-center justify-between">
@@ -97,7 +162,7 @@ export default function AdminInternships() {
           <h1 className="font-display text-3xl">Internships</h1>
           <p className="text-slate-400">Assign mentors and enroll students.</p>
         </div>
-        <button className="btn-primary" onClick={() => setOpen(true)}>
+        <button className="btn-primary" onClick={openCreate}>
           <Plus className="w-4 h-4" /> New Internship
         </button>
       </div>
@@ -106,11 +171,30 @@ export default function AdminInternships() {
         {(list.data ?? []).map((i: any) => (
           <div key={i.id} className="card">
             <div className="flex items-start justify-between">
-              <div>
-                <div className="font-display text-lg">{i.title}</div>
+              <Link href={`/admin/internships/${i.id}`} className="group">
+                <div className="font-display text-lg flex items-center gap-1 group-hover:text-neon-400 transition-colors">
+                  {i.title}
+                  <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
                 <div className="text-sm text-slate-400">{i.organization}</div>
+              </Link>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className={i.status === 'ACTIVE' ? 'badge-active' : 'badge-muted'}>{i.status}</span>
+                <button
+                  className="text-slate-500 hover:text-neon-400 transition-colors"
+                  title="Edit internship"
+                  onClick={() => openEdit(i)}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  className="text-slate-500 hover:text-red-400 transition-colors"
+                  title="Delete internship"
+                  onClick={() => setDeleteTarget(i)}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <span className={i.status === 'ACTIVE' ? 'badge-active' : 'badge-muted'}>{i.status}</span>
             </div>
             <div className="grid grid-cols-3 gap-3 mt-4 text-center">
               <Stat label="Days" value={i.totalDays} />
@@ -165,13 +249,15 @@ export default function AdminInternships() {
         )}
       </div>
 
-      {open && (
+      {modal && (
         <div className="fixed inset-0 z-40 bg-black/60 grid place-items-center p-6">
           <div className="card w-full max-w-xl relative">
-            <button className="absolute top-4 right-4 text-slate-400 hover:text-white" onClick={() => setOpen(false)}>
+            <button className="absolute top-4 right-4 text-slate-400 hover:text-white" onClick={() => setModal(null)}>
               <X className="w-4 h-4" />
             </button>
-            <h2 className="font-display text-xl">New Internship</h2>
+            <h2 className="font-display text-xl">
+              {modal.mode === 'edit' ? 'Edit Internship' : 'New Internship'}
+            </h2>
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div className="col-span-2">
                 <label className="label">Title</label>
@@ -197,26 +283,65 @@ export default function AdminInternships() {
                 <label className="label">Description</label>
                 <textarea className="input" rows={2} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
               </div>
-              <div className="col-span-2">
-                <label className="label">Mentors</label>
-                <select multiple className="input h-24" value={form.mentorIds} onChange={(e) => setForm((f) => ({ ...f, mentorIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}>
-                  {mentors.map((m: any) => (
-                    <option key={m.id} value={m.id}>{m.firstName} {m.lastName} · {m.email}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="label">Students</label>
-                <select multiple className="input h-32" value={form.studentIds} onChange={(e) => setForm((f) => ({ ...f, studentIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}>
-                  {students.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.firstName} {s.lastName} · {s.rollNumber ?? s.email}</option>
-                  ))}
-                </select>
-              </div>
+
+              {modal.mode === 'create' && (
+                <>
+                  <div className="col-span-2">
+                    <label className="label">Mentors</label>
+                    <select multiple className="input h-24" value={form.mentorIds} onChange={(e) => setForm((f) => ({ ...f, mentorIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}>
+                      {mentors.map((m: any) => (
+                        <option key={m.id} value={m.id}>{m.firstName} {m.lastName} · {m.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="label">Students</label>
+                    <select multiple className="input h-32" value={form.studentIds} onChange={(e) => setForm((f) => ({ ...f, studentIds: Array.from(e.target.selectedOptions).map(o => o.value) }))}>
+                      {students.map((s: any) => (
+                        <option key={s.id} value={s.id}>{s.firstName} {s.lastName} · {s.rollNumber ?? s.email}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {modal.mode === 'edit' && (
+                <div className="col-span-2 text-xs text-slate-500">
+                  Mentors and students are managed from the internship&apos;s detail page.
+                </div>
+              )}
             </div>
-            <button className="btn-primary w-full mt-4" disabled={create.isPending} onClick={() => create.mutate()}>
-              {create.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Create'}
+            <button
+              className="btn-primary w-full mt-4"
+              disabled={saving}
+              onClick={() => (modal.mode === 'edit' ? update.mutate() : create.mutate())}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : modal.mode === 'edit' ? 'Save Changes' : 'Create'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-6">
+          <div className="card w-full max-w-sm">
+            <h2 className="font-display text-lg">Delete internship?</h2>
+            <p className="text-sm text-slate-400 mt-2">
+              This will permanently remove <span className="text-slate-200">{deleteTarget.title}</span>{' '}
+              along with all mentor and student assignments. This cannot be undone.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <button className="btn-ghost flex-1" onClick={() => setDeleteTarget(null)} disabled={remove.isPending}>
+                Cancel
+              </button>
+              <button
+                className="btn-danger flex-1"
+                onClick={() => remove.mutate(deleteTarget.id)}
+                disabled={remove.isPending}
+              >
+                {remove.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
