@@ -1,5 +1,5 @@
 import { Users, ShieldCheck, GraduationCap, type LucideIcon } from 'lucide-react';
-import { fmtNumber, isFiniteNumber } from './format';
+import { fmtNumber, isFiniteNumber } from '@/lib/utils/format';
 import type { UsersByRoleMap } from './types';
 
 interface UsersByRoleProps {

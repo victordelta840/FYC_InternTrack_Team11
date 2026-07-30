@@ -1,4 +1,4 @@
-import { fmtNumber, fmtText } from './format';
+import { fmtNumber, fmtText } from '@/lib/utils/format';
 
 interface SummaryChip {
   label: string;

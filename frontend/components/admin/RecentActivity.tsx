@@ -1,5 +1,5 @@
 import { History, Inbox } from 'lucide-react';
-import { fmtText } from './format';
+import { fmtText } from '@/lib/utils/format';
 import type { AdminActivityItem } from './types';
 
 interface RecentActivityProps {
