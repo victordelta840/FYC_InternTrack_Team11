@@ -1,6 +1,6 @@
 import { Users, ShieldCheck, GraduationCap, type LucideIcon } from 'lucide-react';
 import { fmtNumber, isFiniteNumber } from '@/lib/utils/format';
-import type { UsersByRoleMap } from './types';
+import type { UsersByRoleMap } from '@/types/admin/types';
 
 interface UsersByRoleProps {
   usersByRole?: UsersByRoleMap;

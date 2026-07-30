@@ -21,8 +21,8 @@ import { QuickActions } from '@/components/admin/QuickActions';
 import { AdminDashboardSkeleton } from '@/components/admin/LoadingSkeleton';
 import { AdminDashboardError } from '@/components/admin/ErrorState';
 import { AdminDashboardEmpty } from '@/components/admin/EmptyState';
-import { isFiniteNumber } from '@/components/admin/format';
-import type { AdminDashboardSummary } from '@/components/admin/types';
+import { isFiniteNumber } from '@/lib/utils/format';
+import type { AdminDashboardSummary } from '@/types/admin/types';
 
 // GET /dashboard/admin-summary — existing backend endpoint, unchanged.
 async function fetchAdminSummary(): Promise<AdminDashboardSummary> {
